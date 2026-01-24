@@ -102,16 +102,16 @@ export default function LoginScreen() {
           <TouchableOpacity 
             style={[
               styles.signInButton, 
-              !isFormValid && styles.signInButtonDisabled
+              (!isFormValid || loading) && styles.signInButtonDisabled
             ]}
             onPress={handleSignIn}
-            disabled={!isFormValid}
+            disabled={!isFormValid || loading}
           >
             <Text style={[
               styles.signInButtonText,
-              !isFormValid && styles.signInButtonTextDisabled
+              (!isFormValid || loading) && styles.signInButtonTextDisabled
             ]}>
-              SIGN IN
+              {loading ? 'SIGNING IN...' : 'SIGN IN'}
             </Text>
           </TouchableOpacity>
 
