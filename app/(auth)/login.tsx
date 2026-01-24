@@ -1,5 +1,5 @@
+import { signInWithApple, signInWithFacebook, signInWithGoogle } from '@/utils/auth-social';
 import { supabase } from '@/utils/supabase';
-import { signInWithGoogle, signInWithApple, signInWithFacebook } from '@/utils/auth-social';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -31,6 +31,22 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   
   const isFormValid = email.trim().length > 0 && password.length > 0;
+
+  const performSocialLogin = async (providerName: string, loginFunc: () => Promise<any>) => {
+    try {
+      setLoading(true);
+      const result = await loginFunc();
+      if (!result) {
+        // Cancelled
+        setLoading(false);
+        return;
+      }
+      // Success is handled by the auth state listener
+    } catch (e: any) {
+      setLoading(false);
+      Alert.alert(`${providerName} Login Failed`, e.message);
+    }
+  };
 
   const handleSignIn = async () => {
     if (!isFormValid) return;
@@ -123,21 +139,30 @@ export default function LoginScreen() {
 
         {/* Social Login Section - pushed to bottom */}
         <View style={styles.socialSection}>
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity 
+            style={styles.socialButton}
+            onPress={() => performSocialLogin('Google', signInWithGoogle)}
+          >
             <View style={styles.socialIconContainer}>
               <Text style={styles.googleIcon}>G</Text>
             </View>
             <Text style={styles.socialButtonText}>SIGN IN WITH GOOGLE</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity 
+            style={styles.socialButton}
+             onPress={() => performSocialLogin('Facebook', signInWithFacebook)}
+          >
             <View style={[styles.socialIconContainer, styles.facebookIcon]}>
               <Ionicons name="logo-facebook" size={20} color="#FFFFFF" />
             </View>
             <Text style={styles.socialButtonText}>SIGN IN WITH FACEBOOK</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.socialButton}>
+          <TouchableOpacity 
+            style={styles.socialButton}
+            onPress={() => performSocialLogin('Apple', signInWithApple)}
+          >
             <View style={styles.socialIconContainer}>
               <Ionicons name="logo-apple" size={22} color="#FFFFFF" />
             </View>

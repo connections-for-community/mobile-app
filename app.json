@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.arhim.connectionsmobile"
+      "bundleIdentifier": "com.arhim.connectionsmobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -43,11 +46,22 @@
       ],
       "expo-secure-store",
       "expo-apple-authentication",
-      "@react-native-google-signin/google-signin"
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.601119150522-2sab03mcjvfa4sbdeuocunv9g6tb3evh"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "065d5cb9-1fe7-43d7-b8ca-341261841dc6"
+      }
     }
   }
 }
