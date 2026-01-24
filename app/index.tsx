@@ -1,6 +1,7 @@
+import { BeeMascot } from '@/components/bee-mascot';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const PEACH = '#FFB347';
 const DARK_BG = '#131f24';
@@ -11,11 +12,7 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <BeeMascot size={180} />
         <Text style={styles.title}>connections</Text>
         <Text style={styles.subtitle}>
           Learn for free. Forever.
@@ -55,9 +52,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     alignItems: 'center' 
   },
-  logo: {
-    width: 150,
-    height: 150,
+  mascot: {
     marginBottom: 20,
   },
   title: { 

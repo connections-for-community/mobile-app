@@ -23,7 +23,7 @@ function RootLayoutNav() {
     if (!isAuthenticated && !inAuthGroup && segments.length > 0) {
       // Redirect to the welcome screen if not authenticated and trying to access protected routes
       router.replace('/');
-    } else if (isAuthenticated && (inAuthGroup || segments.length === 0)) {
+    } else if (isAuthenticated && (inAuthGroup || segments.length < 1)) {
       // Redirect to tabs if authenticated and trying to access welcome or auth screens
       router.replace('/(tabs)/home');
     }
