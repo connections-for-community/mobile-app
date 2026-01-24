@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
+    Alert,
     KeyboardAvoidingView,
     Platform,
     StyleSheet,
@@ -11,8 +12,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-import { useAuth } from '@/context/auth-context';
+import { supabase } from '@/utils/supabase';
 
 const PEACH = '#FFB347';
 const DARK_BG = '#131f24';
@@ -21,19 +21,28 @@ const BORDER_COLOR = '#37464f';
 const TEXT_MUTED = '#8a9ba8';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   const isFormValid = email.trim().length > 0 && password.length > 0;
 
-  const handleSignIn = () => {
-    if (isFormValid) {
-      signIn();
+  const handleSignIn = async () => {
+    if (!isFormValid) return;
+    
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    setLoading(false);
+
+    if (error) {
+      Alert.alert('Login Failed', error.message);
     }
   };
 
