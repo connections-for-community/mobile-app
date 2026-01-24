@@ -1,4 +1,5 @@
 import { supabase } from '@/utils/supabase';
+import { signInWithGoogle, signInWithApple, signInWithFacebook } from '@/utils/auth-social';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
