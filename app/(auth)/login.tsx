@@ -1,3 +1,4 @@
+import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -12,7 +13,6 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '@/utils/supabase';
 
 const PEACH = '#FFB347';
 const DARK_BG = '#131f24';
