@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -6,15 +6,15 @@ const DARK_BG = '#131f24';
 const TEXT_COLOR = '#ECEDEE';
 const PEACH = '#FFB347';
 
-export default function ExploreScreen() {
+export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-       <View style={styles.content}>
-        <IconSymbol name="safari.fill" size={64} color={PEACH} />
-        <Text style={styles.title}>Explore</Text>
-        <Text style={styles.subtitle}>Browse categories and events.</Text>
+      <View style={styles.content}>
+        <IconSymbol name="message.fill" size={64} color={PEACH} />
+        <Text style={styles.title}>Messages</Text>
+        <Text style={styles.subtitle}>Chat with instructors and peers.</Text>
       </View>
     </View>
   );

@@ -3,7 +3,7 @@ import { useAuth } from '@/context/auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { supabase } from '@/utils/supabase';
 import React from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
@@ -18,13 +18,64 @@ export default function SettingsScreen() {
     }
   };
 
+  const meta = user?.user_metadata || {};
+
   return (
-    <View style={[styles.container, { backgroundColor: Colors[colorScheme].background, paddingTop: insets.top }]}>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}
+      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 }}
+    >
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors[colorScheme].text }]}>Settings</Text>
       </View>
 
       <View style={styles.content}>
+        
+        {/* Helper to show consistent sections */}
+        <View style={[styles.section, { backgroundColor: colorScheme === 'dark' ? '#1c2b33' : '#f5f5f5' }]}>
+          <Text style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}>My Profile</Text>
+          
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Name</Text>
+            <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>{meta.full_name || 'N/A'}</Text>
+          </View>
+          
+          <View style={styles.separator} />
+
+          <View style={styles.row}>
+            <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Location</Text>
+            <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>{meta.location || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.separator} />
+          
+           <View style={styles.row}>
+            <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Role</Text>
+            <Text style={[styles.value, { color: Colors[colorScheme].icon, textTransform: 'capitalize' }]}>{meta.role || 'Student'}</Text>
+          </View>
+
+          {meta.role === 'instructor' && (
+            <>
+              <View style={styles.separator} />
+              <View style={styles.column}>
+                <Text style={[styles.label, { color: Colors[colorScheme].text, marginBottom: 4 }]}>Teaching Skills</Text>
+                <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>{meta.instructor_skills || 'None listed'}</Text>
+              </View>
+            </>
+          )}
+        </View>
+
+         <View style={[styles.section, { backgroundColor: colorScheme === 'dark' ? '#1c2b33' : '#f5f5f5' }]}>
+          <Text style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}>Interests</Text>
+          <View style={styles.chipContainer}>
+             {meta.interests?.map((interest: string, index: number) => (
+                <View key={index} style={styles.chip}>
+                   <Text style={styles.chipText}>{interest}</Text>
+                </View>
+             )) || <Text style={{color: Colors[colorScheme].icon}}>No interests selected</Text>}
+          </View>
+        </View>
+
         <View style={[styles.section, { backgroundColor: colorScheme === 'dark' ? '#1c2b33' : '#f5f5f5' }]}>
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}>Account</Text>
           <View style={styles.row}>
@@ -40,7 +91,7 @@ export default function SettingsScreen() {
           <Text style={styles.signOutText}>LOG OUT</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -76,11 +127,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  column: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#37464f', // simplistic separator
+    opacity: 0.2,
+  },
   label: {
     fontSize: 16,
+    fontWeight: '500',
   },
   value: {
     fontSize: 16,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    backgroundColor: '#FFB347',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  chipText: {
+    color: '#131f24',
+    fontWeight: '600',
+    fontSize: 14,
   },
   signOutButton: {
     backgroundColor: '#FFB347',

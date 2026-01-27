@@ -19,6 +19,10 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'gearshape.fill': 'settings',
+  'safari.fill': 'explore',
+  'sparkles': 'auto-awesome',
+  'message.fill': 'chat',
+  'person.2.fill': 'people',
 } as IconMapping;
 
 /**

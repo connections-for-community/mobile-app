@@ -6,7 +6,8 @@ import { supabase } from './supabase';
 // You need to get these IDs from Google Cloud Console
 GoogleSignin.configure({
   scopes: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, 
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
   offlineAccess: true, 
 });
 

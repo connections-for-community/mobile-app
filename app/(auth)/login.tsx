@@ -1,12 +1,16 @@
-import { signInWithApple, signInWithFacebook, signInWithGoogle } from '@/utils/auth-social';
+// TODO: Uncomment when Development Build is ready
+import { signInWithApple, signInWithGoogle } from '@/utils/auth-social';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Alert,
+    Animated,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
+    Pressable,
     StyleSheet,
     Text,
     TextInput,
@@ -29,6 +33,35 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const socialOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        Animated.timing(socialOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        Animated.timing(socialOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardWillHideListener.remove();
+      keyboardWillShowListener.remove();
+    };
+  }, [socialOpacity]);
   
   const isFormValid = email.trim().length > 0 && password.length > 0;
 
@@ -44,6 +77,9 @@ export default function LoginScreen() {
       // Success is handled by the auth state listener
     } catch (e: any) {
       setLoading(false);
+      // Ignore "No ID token present!" if likely caused by UI flow interruption or suppression
+      if (e.message === 'No ID token present!') return;
+      
       Alert.alert(`${providerName} Login Failed`, e.message);
     }
   };
@@ -68,7 +104,10 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[styles.content, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
+      <Pressable 
+        style={[styles.content, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}
+        onPress={Keyboard.dismiss}
+      >
         {/* Header with back button */}
         <View style={styles.header}>
           <TouchableOpacity 
@@ -132,29 +171,33 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.forgotButton}>
+          <TouchableOpacity 
+            style={styles.forgotButton}
+            onPress={() => Alert.alert('Forgot Password', 'Password recovery is coming soon.')}
+          >
             <Text style={styles.forgotButtonText}>FORGOT PASSWORD</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Social Login Section - pushed to bottom */}
-        <View style={styles.socialSection}>
+        {/* Social Login Section */}
+        <Animated.View style={[styles.socialSection, { opacity: socialOpacity }]} pointerEvents="auto">
           <TouchableOpacity 
             style={styles.socialButton}
             onPress={() => performSocialLogin('Google', signInWithGoogle)}
           >
             <View style={styles.socialIconContainer}>
-              <Text style={styles.googleIcon}>G</Text>
+              <Ionicons name="logo-google" size={22} color="#FFFFFF" />
             </View>
             <Text style={styles.socialButtonText}>SIGN IN WITH GOOGLE</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.socialButton}
-             onPress={() => performSocialLogin('Facebook', signInWithFacebook)}
+            // Facebook SDK not installed yet
+            onPress={() => Alert.alert('Facebook Login', 'Facebook login is not yet configured.')}
           >
             <View style={[styles.socialIconContainer, styles.facebookIcon]}>
-              <Ionicons name="logo-facebook" size={20} color="#FFFFFF" />
+              <Ionicons name="logo-facebook" size={22} color="#FFFFFF" />
             </View>
             <Text style={styles.socialButtonText}>SIGN IN WITH FACEBOOK</Text>
           </TouchableOpacity>
@@ -168,7 +211,7 @@ export default function LoginScreen() {
             </View>
             <Text style={styles.socialButtonText}>SIGN IN WITH APPLE</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {/* Terms */}
         <View style={styles.termsContainer}>
@@ -179,7 +222,7 @@ export default function LoginScreen() {
             <Text style={styles.termsLink}>Privacy Policy</Text>.
           </Text>
         </View>
-      </View>
+      </Pressable>
     </KeyboardAvoidingView>
   );
 }
@@ -304,14 +347,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4285F4',
-  },
+  // googleIcon removed as we use Ionicons now
   facebookIcon: {
-    backgroundColor: '#1877F2',
-    borderRadius: 13,
+    // Facebook logo usually needs a background, but for consistency we might just use the icon
+    // or keep the background if desired. The previous one had blue bg. 
+    // To keep them proportional, let's just make them all transparent with white icon
+    // or keep the circle.
+    // The previous implementation for FB was inconsistent. 
+    // Let's remove specific styles to make them uniform.
   },
   socialButtonText: {
     color: '#FFFFFF',

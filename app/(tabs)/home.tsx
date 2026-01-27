@@ -1,98 +1,298 @@
+import { supabase } from '@/utils/supabase';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import React, { useEffect, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, TouchableOpacity, View, ActivityIndicator, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+// Theme colors
+const DARK_BG = '#131f24';
+const CARD_BG = '#1c2b33';
+const TEXT_COLOR = '#ECEDEE';
+const TEXT_MUTED = '#8a9ba8';
+const PEACH = '#FFB347';
+
+type Event = {
+  id: string;
+  title: string;
+  instructor_name: string;
+  description: string;
+  date: string;
+  upvotes: number;
+  comments_count: number;
+  image_url?: string;
+  created_at: string;
+};
+
+// Mock data in case Supabase is empty
+const MOCK_EVENTS: Event[] = [
+  {
+    id: '1',
+    title: 'Advanced React Native Workshop',
+    instructor_name: 'Sarah Chen',
+    description: 'Deep dive into Reanimated and Gesture Handler. Learn how to build silky smooth animations for your mobile apps.',
+    date: '2023-10-25T14:00:00Z',
+    upvotes: 342,
+    comments_count: 56,
+    created_at: '2023-10-20T10:00:00Z',
+    image_url: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?q=80&w=2070&auto=format&fit=crop',
+  },
+  {
+    id: '2',
+    title: 'Intro to System Design',
+    instructor_name: 'Alex Johnson',
+    description: 'Preparing for technical interviews? Join us for a comprehensive overview of distributed systems.',
+    date: '2023-10-28T18:00:00Z',
+    upvotes: 128,
+    comments_count: 23,
+    created_at: '2023-10-21T09:00:00Z',
+    image_url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop',
+  },
+  {
+    id: '3',
+    title: 'Mobile UX/UI Trends 2024',
+    instructor_name: 'Design Guild',
+    description: 'What is next for mobile design? We explore the new design guidelines from Apple and Google.',
+    date: '2023-11-02T16:30:00Z',
+    upvotes: 892,
+    comments_count: 104,
+    created_at: '2023-10-22T11:00:00Z',
+    image_url: 'https://images.unsplash.com/photo-1586717791821-3f44a5638d4e?q=80&w=2070&auto=format&fit=crop',
+  },
+];
+
+const EventCard = ({ event }: { event: Event }) => (
+  <View style={styles.card}>
+    <View style={styles.cardHeader}>
+      <View style={styles.avatarPlaceholder}>
+          <IconSymbol name="house.fill" size={16} color="#fff" />
+      </View>
+      <View>
+        <Text style={styles.instructorName}>{event.instructor_name}</Text>
+        <Text style={styles.timestamp}>{new Date(event.created_at).toLocaleDateString()}</Text>
+      </View>
+    </View>
+
+    <Text style={styles.cardTitle}>{event.title}</Text>
+    
+    {event.image_url && (
+      <Image
+        source={{ uri: event.image_url }}
+        style={styles.cardImage}
+        contentFit="cover"
+        transition={200}
+      />
+    )}
+    
+    <Text style={styles.cardDescription} numberOfLines={3}>{event.description}</Text>
+
+    <View style={styles.cardFooter}>
+      <View style={styles.statChip}>
+        <IconSymbol name="sparkles" size={16} color={TEXT_MUTED} />
+        <Text style={styles.statText}>{event.upvotes}</Text>
+      </View>
+      <View style={styles.statChip}>
+        <IconSymbol name="message.fill" size={16} color={TEXT_MUTED} />
+        <Text style={styles.statText}>{event.comments_count}</Text>
+      </View>
+      <View style={styles.shareChip}>
+         <IconSymbol name="safari.fill" size={16} color={TEXT_MUTED} />
+         <Text style={styles.statText}>Share</Text>
+      </View>
+    </View>
+  </View>
+);
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const insets = useSafeAreaInsets();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Supabase fetch error (using mock data):', error.message);
+        setEvents(MOCK_EVENTS);
+      } else if (data && data.length > 0) {
+        setEvents(data);
+      } else {
+        setEvents(MOCK_EVENTS);
+      }
+    } catch (e) {
+      console.error(e);
+      setEvents(MOCK_EVENTS);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchEvents();
+  };
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+           <View style={styles.mascotPlaceholder}>
+              <Text style={{fontSize: 20}}>🐝</Text>
+           </View>
+           <Text style={styles.headerTitle}>Home</Text>
+        </View>
+        <TouchableOpacity style={styles.headerButton}>
+          <IconSymbol name="sparkles" size={24} color={PEACH} />
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={PEACH} />
+        </View>
+      ) : (
+        <FlatList
+          data={events}
+          renderItem={({ item }) => <EventCard event={item} />}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PEACH} />
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: DARK_BG,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2b3a42',
+    backgroundColor: DARK_BG,
   },
-  stepContainer: {
-    gap: 8,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mascotPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: CARD_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: PEACH,
+  },
+  headerButton: {
+    padding: 8,
+  },
+  listContent: {
+    padding: 16,
+    gap: 16,
+  },
+  card: {
+    backgroundColor: CARD_BG,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#2b3a42',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  avatarPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: PEACH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  instructorName: {
+    color: TEXT_COLOR,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  timestamp: {
+    color: TEXT_MUTED,
+    fontSize: 12,
+  },
+  cardTitle: {
+    color: TEXT_COLOR,
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardDescription: {
+    color: '#d1d5db',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  cardImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#2b3a42',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 4,
+  },
+  statChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2b3a42',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  shareChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 'auto',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statText: {
+    color: TEXT_MUTED,
+    fontSize: 12,
+    fontWeight: '500',
   },
 });

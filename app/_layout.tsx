@@ -7,9 +7,9 @@ import 'react-native-reanimated';
 import { AuthProvider, useAuth } from '@/context/auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+// export const unstable_settings = {
+//   anchor: '(tabs)',
+// };
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();

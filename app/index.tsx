@@ -22,14 +22,14 @@ export default function WelcomeScreen() {
       <View style={styles.footer}>
         <TouchableOpacity 
           style={styles.button}
-          onPress={() => router.push('/(auth)/sign-up')}
+          onPress={() => router.push('/sign-up')}
         >
           <Text style={styles.buttonText}>GET STARTED</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.outlineButton}
-          onPress={() => router.push('/(auth)/login')}
+          onPress={() => router.push('/login')}
         >
           <Text style={styles.outlineButtonText}>
             I ALREADY HAVE AN ACCOUNT
