@@ -96,7 +96,7 @@ export default function SignUpScreen() {
         username: username.trim(),
         role: role || 'student',
         interests,
-        onboarding_complete: true,
+        onboarding_complete: false, // Set to false so we can redirect to profile setup
       };
       if (personalityType) metadata.personality_type = personalityType;
       if (instructorSkills.trim()) metadata.instructor_skills = instructorSkills.trim();
@@ -149,9 +149,8 @@ export default function SignUpScreen() {
         if (error) throw error;
       }
 
-      Alert.alert('Success', 'Profile created! Welcome to Connections.', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)/home') }
-      ]);
+      // Redirect to Profile Setup instead of Home
+      router.replace('/profile-setup');
     } catch (e: any) {
       console.error('Sign up error:', e);
       // More helpful error messages
