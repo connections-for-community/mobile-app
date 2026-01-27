@@ -5,9 +5,20 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAuth } from '@/context/auth-context';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
+  const role = user?.user_metadata?.role;
+  const isInstructor = role === 'instructor';
+  
+  // Debug log to help you verify what metadata is actually being received
+  console.log(`[TabLayout] Current user: ${user?.email}, Role: ${role}, isInstructor: ${isInstructor}`);
+
+  // Determine icon and title for the middle tab
+  const exploreTabTitle = isInstructor ? 'Create' : 'Explore';
+  const exploreTabIcon = isInstructor ? 'plus.circle.fill' : 'safari.fill';
 
   return (
     <Tabs
@@ -33,8 +44,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="safari.fill" color={color} />,
+          title: exploreTabTitle,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name={exploreTabIcon as any} color={color} />,
         }}
       />
       <Tabs.Screen

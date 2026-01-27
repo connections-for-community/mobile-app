@@ -85,6 +85,22 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
+      // 2. Prepare Profile Metadata with ALL questionnaire answers
+      const interests = selectedInterests.length > 0 ? selectedInterests : [];
+      const personalityType = quizAnswers.q1 && quizAnswers.q2 && quizAnswers.q3 
+        ? `${quizAnswers.q1}-${quizAnswers.q2}-${quizAnswers.q3}` 
+        : null;
+
+      const metadata: Record<string, any> = {
+        full_name: name.trim(),
+        username: username.trim(),
+        role: role || 'student',
+        interests,
+        onboarding_complete: true,
+      };
+      if (personalityType) metadata.personality_type = personalityType;
+      if (instructorSkills.trim()) metadata.instructor_skills = instructorSkills.trim();
+
       // 1. Authenticate
       if (!isExistingUser) {
         if (method === 'email') {
@@ -94,51 +110,45 @@ export default function SignUpScreen() {
             return;
           }
           
-          const { error } = await supabase.auth.signUp({
+          if (password.length < 6) {
+            Alert.alert('Invalid Password', 'Password must be at least 6 characters.');
+            setLoading(false);
+            return;
+          }
+
+          const { data: signUpData, error } = await supabase.auth.signUp({
             email,
             password,
             options: {
-              data: {
-                full_name: name.trim(),
-                username: username.trim(),
-              },
+              data: metadata, // Pass ALL metadata here for email signups
             },
           });
           if (error) throw error;
+
+          // If session is null, email confirmation might be on
+          if (!signUpData.session && signUpData.user) {
+             Alert.alert('Verify Email', 'Please check your inbox to verify your email before logging in.');
+             setLoading(false);
+             return;
+          }
         } else if (method === 'google') {
            const result = await signInWithGoogle();
            if (!result) { setLoading(false); return; } // Cancelled
+           // For OAuth, we MUST call updateUser because signUp metadata options don't apply to signInWithIdToken
+           const { error } = await supabase.auth.updateUser({ data: metadata });
+           if (error) throw error;
         } else if (method === 'apple') {
            const result = await signInWithApple();
            if (!result) { setLoading(false); return; } // Cancelled
+           const { error } = await supabase.auth.updateUser({ data: metadata });
+           if (error) throw error;
         }
+      } else {
+        // Existing social user finishing profile
+        const { error } = await supabase.auth.updateUser({ data: metadata });
+        if (error) throw error;
       }
 
-      // 2. Update Profile Metadata with ALL questionnaire answers
-      // This runs for both email signup AND OAuth - ensures data is saved
-      const interests = selectedInterests.length > 0 ? selectedInterests : [];
-      const personalityType = quizAnswers.q1 && quizAnswers.q2 && quizAnswers.q3 
-        ? `${quizAnswers.q1}-${quizAnswers.q2}-${quizAnswers.q3}` 
-        : null;
-
-      // Build metadata object - only include non-empty values
-      const metadata: Record<string, any> = {
-        full_name: name.trim(),
-        username: username.trim(),
-        role: role || 'student',
-        interests,
-        onboarding_complete: true,
-      };
-
-      // Add optional fields only if they have values
-      if (personalityType) metadata.personality_type = personalityType;
-      if (instructorSkills.trim()) metadata.instructor_skills = instructorSkills.trim();
-
-      // Update user metadata (works for both email and OAuth)
-      const { error } = await supabase.auth.updateUser({ data: metadata });
-
-      if (error) throw error;
-      
       Alert.alert('Success', 'Profile created! Welcome to Connections.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)/home') }
       ]);
