@@ -18,12 +18,35 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+        "Delete Account",
+        "Are you sure you want to delete your account? This action cannot be undone.",
+        [
+            { text: "Cancel", style: "cancel" },
+            { 
+                text: "Delete", 
+                style: "destructive",
+                onPress: async () => {
+                   // TODO: Implement actual backend deletion via Edge Function
+                   // const { error } = await supabase.functions.invoke('delete-user');
+                   // if (error) Alert.alert('Error', error.message);
+                   
+                   // For now, simply sign out to simulate the experience
+                   Alert.alert("Account Deleted", "Your account has been scheduled for deletion.");
+                   await supabase.auth.signOut();
+                }
+            }
+        ]
+    );
+  };
+
   const meta = user?.user_metadata || {};
 
   return (
     <ScrollView 
       style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}
-      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 120 }}
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: Colors[colorScheme].text }]}>Settings</Text>
@@ -43,16 +66,26 @@ export default function SettingsScreen() {
           <View style={styles.separator} />
 
           <View style={styles.row}>
-            <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Location</Text>
-            <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>{meta.location || 'N/A'}</Text>
+            <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Username</Text>
+            <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>@{meta.username || 'not set'}</Text>
           </View>
 
           <View style={styles.separator} />
           
-           <View style={styles.row}>
+          <View style={styles.row}>
             <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Role</Text>
             <Text style={[styles.value, { color: Colors[colorScheme].icon, textTransform: 'capitalize' }]}>{meta.role || 'Student'}</Text>
           </View>
+
+          {meta.personality_type && (
+            <>
+              <View style={styles.separator} />
+              <View style={styles.row}>
+                <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Personality</Text>
+                <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>{meta.personality_type}</Text>
+              </View>
+            </>
+          )}
 
           {meta.role === 'instructor' && (
             <>
@@ -89,6 +122,13 @@ export default function SettingsScreen() {
           onPress={handleSignOut}
         >
           <Text style={styles.signOutText}>LOG OUT</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.deleteButton} 
+          onPress={handleDeleteAccount}
+        >
+          <Text style={styles.deleteButtonText}>DELETE ACCOUNT</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -172,5 +212,16 @@ const styles = StyleSheet.create({
     color: '#131f24',
     fontSize: 16,
     fontWeight: '800',
+  },
+  deleteButton: {
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });

@@ -75,6 +75,29 @@ export default function LoginScreen() {
         return;
       }
       // Success is handled by the auth state listener
+      // However, we need to check if onboarding is complete
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user && !user.user_metadata?.onboarding_complete) {
+        Alert.alert(
+          "Account Not Set Up",
+          "You haven't finished setting up your account yet. Would you like to do that now?",
+          [
+            {
+              text: "No",
+              style: "cancel",
+              onPress: async () => {
+                await supabase.auth.signOut();
+                setLoading(false);
+              }
+            },
+            {
+              text: "Yes, Let's Go",
+              onPress: () => router.push('/(auth)/sign-up')
+            }
+          ]
+        );
+      }
     } catch (e: any) {
       setLoading(false);
       // Ignore "No ID token present!" if likely caused by UI flow interruption or suppression

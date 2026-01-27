@@ -2,7 +2,7 @@ import { signInWithApple, signInWithGoogle } from '@/utils/auth-social';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Alert,
     KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BeeMascot } from '@/components/bee-mascot';
 
 const PEACH = '#FFB347';
 const DARK_BG = '#131f24';
@@ -23,12 +24,16 @@ const BORDER_COLOR = '#37464f';
 const TEXT_MUTED = '#8a9ba8';
 
 // Onboarding Steps
-const STEP_INTEREST_MODE = 0;
-const STEP_SELECT_INTERESTS = 1;
-const STEP_PERSONALITY_TEST = 2;
-const STEP_ROLE_SELECTION = 3;
-const STEP_INSTRUCTOR_DETAILS = 4;
-const STEP_FINAL_DETAILS = 5;
+const STEP_WELCOME = 0;
+const STEP_INTEREST_MODE = 1;
+const STEP_QUIZ_Q1 = 2; // Introvert/Extrovert
+const STEP_QUIZ_Q2 = 3; // Creative/Logical
+const STEP_QUIZ_Q3 = 4; // Indoor/Outdoor
+const STEP_SELECT_INTERESTS = 5; // Result/Manual Selection
+const STEP_ROLE_SELECTION = 6;
+const STEP_INSTRUCTOR_DETAILS = 7;
+const STEP_FINAL_DETAILS = 8;
+const TOTAL_STEPS = 9;
 
 const AVAILABLE_INTERESTS = [
   'Technology', 'Art', 'Music', 'Cooking', 'Fitness', 
@@ -40,63 +45,97 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   
   // Wizard State
-  const [currentStep, setCurrentStep] = useState(STEP_INTEREST_MODE);
+  const [currentStep, setCurrentStep] = useState(STEP_WELCOME);
   
   // Form Data
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
+  const [username, setUsername] = useState('');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [role, setRole] = useState<'student' | 'instructor' | null>(null);
   const [instructorSkills, setInstructorSkills] = useState('');
   const [testAnswer, setTestAnswer] = useState<string | null>(null); // Mock personality test answer
+  const [quizAnswers, setQuizAnswers] = useState({ q1: '', q2: '', q3: '' });
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isExistingUser, setIsExistingUser] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setIsExistingUser(true);
+        if (user.email) setEmail(user.email);
+        if (user.user_metadata?.full_name) setName(user.user_metadata.full_name);
+      }
+    });
+  }, []);
   
-  const isCredentialsValid = email.trim().length > 0 && password.length > 0 && name.trim().length > 0;
+  // Validation: name + username required for all, email + password for non-OAuth
+  const hasRequiredFields = name.trim().length > 0 && username.trim().length > 0;
+  const isEmailFormValid = hasRequiredFields && email.trim().length > 0 && (isExistingUser || password.length > 0);
 
   const handleCompleteSignUp = async (method: 'email' | 'google' | 'apple') => {
+    // Validate required fields for all methods
+    if (!name.trim() || !username.trim()) {
+      Alert.alert('Missing Info', 'Please enter your name and username.');
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Authenticate
-      if (method === 'email') {
-        if (!isCredentialsValid || !location) return;
-        
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: name,
+      if (!isExistingUser) {
+        if (method === 'email') {
+          if (!email.trim() || !password) {
+            Alert.alert('Missing Info', 'Please enter your email and password.');
+            setLoading(false);
+            return;
+          }
+          
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                full_name: name.trim(),
+                username: username.trim(),
+              },
             },
-          },
-        });
-        if (error) throw error;
-      } else if (method === 'google') {
-         const result = await signInWithGoogle();
-         if (!result) { setLoading(false); return; } // Cancelled
-      } else if (method === 'apple') {
-         const result = await signInWithApple();
-         if (!result) { setLoading(false); return; } // Cancelled
+          });
+          if (error) throw error;
+        } else if (method === 'google') {
+           const result = await signInWithGoogle();
+           if (!result) { setLoading(false); return; } // Cancelled
+        } else if (method === 'apple') {
+           const result = await signInWithApple();
+           if (!result) { setLoading(false); return; } // Cancelled
+        }
       }
 
-      // 2. Update Profile Metadata
-      const interests = testAnswer 
-          ? (testAnswer === 'Introvert' ? ['Reading', 'Art', 'Technology'] : ['Sports', 'Music', 'Travel'])
-          : selectedInterests;
+      // 2. Update Profile Metadata with ALL questionnaire answers
+      // This runs for both email signup AND OAuth - ensures data is saved
+      const interests = selectedInterests.length > 0 ? selectedInterests : [];
+      const personalityType = quizAnswers.q1 && quizAnswers.q2 && quizAnswers.q3 
+        ? `${quizAnswers.q1}-${quizAnswers.q2}-${quizAnswers.q3}` 
+        : null;
 
-      // Update user metadata with profile info
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          location: location || 'Unknown', // Location might be empty if social sign up didn't provide it, need to handle that or ask for it
-          role,
-          interests,
-          instructor_skills: instructorSkills,
-          onboarding_complete: true,
-        }
-      });
+      // Build metadata object - only include non-empty values
+      const metadata: Record<string, any> = {
+        full_name: name.trim(),
+        username: username.trim(),
+        role: role || 'student',
+        interests,
+        onboarding_complete: true,
+      };
+
+      // Add optional fields only if they have values
+      if (personalityType) metadata.personality_type = personalityType;
+      if (instructorSkills.trim()) metadata.instructor_skills = instructorSkills.trim();
+
+      // Update user metadata (works for both email and OAuth)
+      const { error } = await supabase.auth.updateUser({ data: metadata });
 
       if (error) throw error;
       
@@ -104,9 +143,13 @@ export default function SignUpScreen() {
         { text: 'OK', onPress: () => router.replace('/(tabs)/home') }
       ]);
     } catch (e: any) {
-      if (e.message !== 'No ID token present!') {
-          Alert.alert('Sign Up Failed', e.message);
+      console.error('Sign up error:', e);
+      // More helpful error messages
+      let errorMessage = e.message;
+      if (e.message?.includes('unacceptable')) {
+        errorMessage = 'Google authentication failed. Please check that your Google Cloud Console and Supabase configurations match.';
       }
+      Alert.alert('Sign Up Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -129,11 +172,12 @@ export default function SignUpScreen() {
 
       <View style={[styles.inputContainer, styles.inputMiddle]}>
         <TextInput 
-          placeholder="Location (e.g. New York, USA)" 
+          placeholder="Username (e.g. @coolbee123)" 
           placeholderTextColor={TEXT_MUTED}
           style={styles.input}
-          value={location}
-          onChangeText={setLocation}
+          value={username}
+          onChangeText={(text) => setUsername(text.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+          autoCapitalize="none"
         />
       </View>
 
@@ -146,92 +190,283 @@ export default function SignUpScreen() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          editable={!isExistingUser}
         />
       </View>
       
       <View style={[styles.inputContainer, styles.inputBottom]}>
-        <TextInput 
-          placeholder="Password" 
-          placeholderTextColor={TEXT_MUTED}
-          secureTextEntry={!showPassword}
-          style={[styles.input, styles.passwordInput]}
-          value={password}
-          onChangeText={setPassword}
-        />
-        <TouchableOpacity 
-          style={styles.eyeButton}
-          onPress={() => setShowPassword(!showPassword)}
-        >
-          <Ionicons 
-            name={showPassword ? "eye" : "eye-off"} 
-            size={24} 
-            color={PEACH} 
-          />
-        </TouchableOpacity>
+        {!isExistingUser ? (
+          <>
+            <TextInput 
+              placeholder="Password" 
+              placeholderTextColor={TEXT_MUTED}
+              secureTextEntry={!showPassword}
+              style={[styles.input, styles.passwordInput]}
+              value={password}
+              onChangeText={setPassword}
+            />
+            <TouchableOpacity 
+              style={styles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons 
+                name={showPassword ? "eye" : "eye-off"} 
+                size={24} 
+                color={PEACH} 
+              />
+            </TouchableOpacity>
+          </>
+        ) : (
+             <View style={{ padding: 16 }}>
+                 <Text style={{ color: TEXT_MUTED }}>Social Account Linked ✓</Text>
+             </View>
+        )}
       </View>
       
       <TouchableOpacity 
         style={[
           styles.signInButton, 
-          (!isCredentialsValid || !location || loading) && styles.signInButtonDisabled
+          (!isEmailFormValid || loading) && styles.signInButtonDisabled
         ]}
         onPress={() => handleCompleteSignUp('email')}
-        disabled={!isCredentialsValid || !location || loading}
+        disabled={!isEmailFormValid || loading}
       >
         <Text style={[
           styles.signInButtonText,
-          (!isCredentialsValid || !location || loading) && styles.signInButtonTextDisabled
+          (!isEmailFormValid || loading) && styles.signInButtonTextDisabled
         ]}>
-          {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
+          {loading ? 'FINISHING UP...' : isExistingUser ? 'COMPLETE PROFILE' : 'CREATE ACCOUNT'}
         </Text>
       </TouchableOpacity>
 
-      <View style={styles.termsContainer}>
-        <Text style={styles.termsText}>
-          By signing up, you agree to our{' '}
-          <Text style={styles.termsLink}>Terms</Text> and{' '}
-          <Text style={styles.termsLink}>Privacy Policy</Text>.
-        </Text>
-      </View>
+      {!isExistingUser && (
+        <>
+            <View style={styles.termsContainer}>
+                <Text style={styles.termsText}>
+                By signing up, you agree to our{' '}
+                <Text style={styles.termsLink}>Terms</Text> and{' '}
+                <Text style={styles.termsLink}>Privacy Policy</Text>.
+                </Text>
+            </View>
 
-      <View style={styles.dividerContainer}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR SIGN UP WITH</Text>
-        <View style={styles.dividerLine} />
-      </View>
+            <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR SIGN UP WITH</Text>
+                <View style={styles.dividerLine} />
+            </View>
 
-      <View style={styles.socialRow}>
-        <TouchableOpacity style={styles.socialButtonSmall} onPress={() => handleCompleteSignUp('google')}>
-           <Ionicons name="logo-google" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.socialButtonSmall} onPress={() => handleCompleteSignUp('apple')}>
-           <Ionicons name="logo-apple" size={24} color="#FFF" />
-        </TouchableOpacity>
-         <TouchableOpacity style={styles.socialButtonSmall} onPress={() => Alert.alert('Coming Soon', 'Facebook signup coming soon')}>
-           <Ionicons name="logo-facebook" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+            <View style={styles.socialRow}>
+                <TouchableOpacity 
+                  style={[styles.socialButtonSmall, !hasRequiredFields && { opacity: 0.5 }]} 
+                  onPress={() => handleCompleteSignUp('google')}
+                  disabled={loading}
+                >
+                  <Ionicons name="logo-google" size={24} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.socialButtonSmall, !hasRequiredFields && { opacity: 0.5 }]} 
+                  onPress={() => handleCompleteSignUp('apple')}
+                  disabled={loading}
+                >
+                  <Ionicons name="logo-apple" size={24} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.socialButtonSmall, { opacity: 0.5 }]} 
+                  onPress={() => Alert.alert('Coming Soon', 'Facebook signup coming soon')}
+                >
+                  <Ionicons name="logo-facebook" size={24} color="#FFF" />
+                </TouchableOpacity>
+            </View>
+
+            {!hasRequiredFields && (
+              <Text style={{ color: TEXT_MUTED, textAlign: 'center', fontSize: 13, marginTop: 8 }}>
+                Fill in your name & username above to enable social sign-up
+              </Text>
+            )}
+        </>
+      )}
+    </View>
+  );
+
+  const renderWelcomeStep = () => (
+    <View style={styles.stepContainer}>
+      <Text style={[styles.stepTitle, { textAlign: 'center', fontSize: 32 }]}>Welcome!</Text>
+      <Text style={[styles.stepSubtitle, { textAlign: 'center' }]}>
+        I'm <Text style={{ color: PEACH, fontWeight: 'bold' }}>Bee</Text>, your guide to connections.
+        {'\n'}Let's get your profile set up in just a few taps!
+      </Text>
+
+      <TouchableOpacity 
+        style={styles.signInButton}
+        onPress={() => setCurrentStep(STEP_INTEREST_MODE)}
+      >
+        <Text style={styles.signInButtonText}>LET'S GO!</Text>
+      </TouchableOpacity>
     </View>
   );
 
   const renderInterestModeStep = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Find your spark</Text>
-      <Text style={styles.stepSubtitle}>How should we find your interests?</Text>
+      <Text style={[styles.stepTitle, { textAlign: 'center' }]}>Find your spark</Text>
+      <Text style={[styles.stepSubtitle, { textAlign: 'center' }]}>How should we find your interests?</Text>
       
       <View style={{ gap: 16 }}>
         <TouchableOpacity 
-          style={styles.outlineButton}
+          style={styles.cardButton}
           onPress={() => setCurrentStep(STEP_SELECT_INTERESTS)}
         >
-          <Text style={styles.outlineButtonText}>I KNOW WHAT I LIKE</Text>
+          <IconSymbol name="sparkles" size={32} color={PEACH} />
+          <View style={{ flex: 1 }}>
+             <Text style={styles.cardButtonTitle}>I know what I like</Text>
+             <Text style={styles.cardButtonDesc}>Pick from a list of topics</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color={BORDER_COLOR} />
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.outlineButton}
-          onPress={() => setCurrentStep(STEP_PERSONALITY_TEST)}
+          style={styles.cardButton}
+          onPress={() => setCurrentStep(STEP_QUIZ_Q1)}
         >
-           <Text style={styles.outlineButtonText}>TAKE A PERSONALITY TEST</Text>
+           <IconSymbol name="magnet" size={32} color={PEACH} />
+           <View style={{ flex: 1 }}>
+             <Text style={styles.cardButtonTitle}>Take a Quiz</Text>
+             <Text style={styles.cardButtonDesc}>Let us suggest some for you</Text>
+           </View>
+           <Ionicons name="chevron-forward" size={24} color={BORDER_COLOR} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const handleQuizCompletion = (q3Answer: string) => {
+    // Determine interests based on 3 answers
+    // q1: Introvert/Extrovert
+    // q2: Creative/Analytical
+    // q3: Chill/Active
+    
+    // Simple logic engine - only use interests from AVAILABLE_INTERESTS
+    const newInterests: string[] = [];
+    const { q2 } = quizAnswers;
+    const q3 = q3Answer; // latest answer
+
+    if (q2 === 'Creative') newInterests.push('Art', 'Writing', 'Music');
+    if (q2 === 'Analytical') newInterests.push('Science', 'Technology', 'Business');
+    
+    if (q3 === 'Active') newInterests.push('Fitness', 'Cooking'); 
+    else newInterests.push('Gaming', 'Language');
+
+    // Ensure we have unique values and filter to only valid interests
+    const uniqueInterests = Array.from(new Set(newInterests)).filter(i => AVAILABLE_INTERESTS.includes(i));
+    setSelectedInterests(uniqueInterests);
+    setCurrentStep(STEP_SELECT_INTERESTS);
+  };
+
+  const renderQuizQ1 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Personality Check (1/3)</Text>
+      <Text style={styles.stepSubtitle}>How do you recharge?</Text>
+      
+      <View style={{ gap: 16 }}>
+         <TouchableOpacity 
+          style={[styles.cardButton, quizAnswers.q1 === 'Introvert' && styles.cardButtonSelected]}
+          onPress={() => {
+            setQuizAnswers(prev => ({...prev, q1: 'Introvert'}));
+            setTimeout(() => setCurrentStep(STEP_QUIZ_Q2), 200);
+          }}
+        >
+          <IconSymbol name="book.fill" size={32} color={quizAnswers.q1 === 'Introvert' ? PEACH : '#FFFFFF'} />
+          <View>
+             <Text style={styles.cardButtonTitle}>Alone with a book</Text>
+             <Text style={styles.cardButtonDesc}>Quiet time is the best time</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.cardButton, quizAnswers.q1 === 'Extrovert' && styles.cardButtonSelected]}
+          onPress={() => {
+            setQuizAnswers(prev => ({...prev, q1: 'Extrovert'}));
+            setTimeout(() => setCurrentStep(STEP_QUIZ_Q2), 200);
+          }}
+        >
+           <IconSymbol name="person.3.fill" size={32} color={quizAnswers.q1 === 'Extrovert' ? PEACH : '#FFFFFF'} />
+           <View>
+             <Text style={styles.cardButtonTitle}>Out with friends</Text>
+             <Text style={styles.cardButtonDesc}>Energy comes from people</Text>
+           </View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderQuizQ2 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Personality Check (2/3)</Text>
+      <Text style={styles.stepSubtitle}>How do you solve problems?</Text>
+      
+      <View style={{ gap: 16 }}>
+         <TouchableOpacity 
+          style={[styles.cardButton, quizAnswers.q2 === 'Creative' && styles.cardButtonSelected]}
+          onPress={() => {
+            setQuizAnswers(prev => ({...prev, q2: 'Creative'}));
+            setTimeout(() => setCurrentStep(STEP_QUIZ_Q3), 200);
+          }}
+        >
+          <IconSymbol name="paintpalette.fill" size={32} color={quizAnswers.q2 === 'Creative' ? PEACH : '#FFFFFF'} />
+          <View>
+             <Text style={styles.cardButtonTitle}>Creatively</Text>
+             <Text style={styles.cardButtonDesc}>I follow my intuition</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.cardButton, quizAnswers.q2 === 'Analytical' && styles.cardButtonSelected]}
+          onPress={() => {
+            setQuizAnswers(prev => ({...prev, q2: 'Analytical'}));
+            setTimeout(() => setCurrentStep(STEP_QUIZ_Q3), 200);
+          }}
+        >
+           <IconSymbol name="brain.head.profile" size={32} color={quizAnswers.q2 === 'Analytical' ? PEACH : '#FFFFFF'} />
+           <View>
+             <Text style={styles.cardButtonTitle}>Logically</Text>
+             <Text style={styles.cardButtonDesc}>I analyze the data</Text>
+           </View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderQuizQ3 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Personality Check (3/3)</Text>
+      <Text style={styles.stepSubtitle}>Pick your perfect weekend</Text>
+      
+      <View style={{ gap: 16 }}>
+         <TouchableOpacity 
+          style={[styles.cardButton, quizAnswers.q3 === 'Chill' && styles.cardButtonSelected]}
+          onPress={() => {
+            setQuizAnswers(prev => ({...prev, q3: 'Chill'}));
+            handleQuizCompletion('Chill');
+          }}
+        >
+          <IconSymbol name="house.fill" size={32} color={quizAnswers.q3 === 'Chill' ? PEACH : '#FFFFFF'} />
+          <View>
+             <Text style={styles.cardButtonTitle}>Stay Cozy</Text>
+             <Text style={styles.cardButtonDesc}>Movies, games, and snacks</Text>
+           </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.cardButton, quizAnswers.q3 === 'Active' && styles.cardButtonSelected]}
+          onPress={() => {
+            setQuizAnswers(prev => ({...prev, q3: 'Active'}));
+             handleQuizCompletion('Active');
+          }}
+        >
+           <IconSymbol name="figure.run" size={32} color={quizAnswers.q3 === 'Active' ? PEACH : '#FFFFFF'} />
+           <View>
+             <Text style={styles.cardButtonTitle}>Get Moving</Text>
+             <Text style={styles.cardButtonDesc}>Hiking, sports, or exploring</Text>
+           </View>
         </TouchableOpacity>
       </View>
     </View>
@@ -269,41 +504,6 @@ export default function SignUpScreen() {
         style={[styles.signInButton, selectedInterests.length < 3 && styles.signInButtonDisabled]}
         onPress={() => setCurrentStep(STEP_ROLE_SELECTION)}
         disabled={selectedInterests.length < 3}
-      >
-        <Text style={styles.signInButtonText}>NEXT</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderPersonalityTestStep = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Personality Check</Text>
-      <Text style={styles.stepSubtitle}>How do you recharge?</Text>
-      
-      <View style={{ gap: 16 }}>
-         <TouchableOpacity 
-          style={[styles.outlineButton, testAnswer === 'Introvert' && styles.outlineButtonSelected]}
-          onPress={() => setTestAnswer('Introvert')}
-        >
-          <Text style={[styles.outlineButtonText, testAnswer === 'Introvert' && styles.outlineButtonTextSelected]}>
-            ALONE WITH A BOOK
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[styles.outlineButton, testAnswer === 'Extrovert' && styles.outlineButtonSelected]}
-          onPress={() => setTestAnswer('Extrovert')}
-        >
-           <Text style={[styles.outlineButtonText, testAnswer === 'Extrovert' && styles.outlineButtonTextSelected]}>
-            OUT WITH FRIENDS
-           </Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity 
-        style={[styles.signInButton, !testAnswer && styles.signInButtonDisabled]}
-        onPress={() => setCurrentStep(STEP_ROLE_SELECTION)}
-        disabled={!testAnswer}
       >
         <Text style={styles.signInButtonText}>NEXT</Text>
       </TouchableOpacity>
@@ -390,24 +590,61 @@ export default function SignUpScreen() {
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 }]}>
         {/* Header with back button */}
         <View style={styles.header}>
-           {currentStep === STEP_INTEREST_MODE && (
+           {currentStep === STEP_WELCOME && (
              <TouchableOpacity 
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
+               onPress={() => router.back()}
+               style={styles.backButton}
+             >
+               <Ionicons name="close" size={28} color="#FFFFFF" />
+             </TouchableOpacity>
            )}
-           {currentStep > STEP_INTEREST_MODE && (
-              <View style={styles.progressBar}>
-                 <View style={[styles.progressFill, { width: `${(currentStep / 6) * 100}%` }]} />
-              </View>
+           {currentStep > STEP_WELCOME && (
+             <View style={{flexDirection: 'row', alignItems: 'center', width: '100%'}}>
+               <TouchableOpacity 
+                 onPress={() => {
+                   // Handle back navigation for quiz steps
+                   if (currentStep === STEP_SELECT_INTERESTS && quizAnswers.q1) {
+                     // If we came from quiz, go back to Q3
+                     setCurrentStep(STEP_QUIZ_Q3);
+                   } else {
+                     setCurrentStep(prev => prev - 1);
+                   }
+                 }}
+                 style={{ paddingRight: 16 }}
+               >
+                 <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+               </TouchableOpacity>
+               <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${(currentStep / (TOTAL_STEPS - 1)) * 100}%` }]} />
+               </View>
+             </View>
            )}
         </View>
 
+        <View style={styles.mascotContainer}>
+           <BeeMascot size={currentStep === STEP_WELCOME ? 160 : 120} />
+           <View style={styles.speechBubble}>
+              <Text style={styles.speechText}>
+                {currentStep === STEP_WELCOME && "Bzz! Welcome to Connections!"}
+                {currentStep === STEP_INTEREST_MODE && "Let's find your spark."}
+                {currentStep === STEP_QUIZ_Q1 && "How do you recharge?"}
+                {currentStep === STEP_QUIZ_Q2 && "How do you solve problems?"}
+                {currentStep === STEP_QUIZ_Q3 && "Pick your perfect weekend!"}
+                {currentStep === STEP_SELECT_INTERESTS && "Pick what you love!"}
+                {currentStep === STEP_ROLE_SELECTION && "What's your goal?"}
+                {currentStep === STEP_INSTRUCTOR_DETAILS && "Show off your skills!"}
+                {currentStep === STEP_FINAL_DETAILS && "Almost there!"}
+              </Text>
+              <View style={styles.speechArrow} />
+           </View>
+        </View>
+
+        {currentStep === STEP_WELCOME && renderWelcomeStep()}
         {currentStep === STEP_INTEREST_MODE && renderInterestModeStep()}
+        {currentStep === STEP_QUIZ_Q1 && renderQuizQ1()}
+        {currentStep === STEP_QUIZ_Q2 && renderQuizQ2()}
+        {currentStep === STEP_QUIZ_Q3 && renderQuizQ3()}
         {currentStep === STEP_SELECT_INTERESTS && renderSelectInterestsStep()}
-        {currentStep === STEP_PERSONALITY_TEST && renderPersonalityTestStep()}
         {currentStep === STEP_ROLE_SELECTION && renderRoleSelectionStep()}
         {currentStep === STEP_INSTRUCTOR_DETAILS && renderInstructorDetailsStep()}
         {currentStep === STEP_FINAL_DETAILS && renderFinalDetailsStep()}
@@ -419,7 +656,14 @@ export default function SignUpScreen() {
 
 // Helper Icon Component (simplified for this file)
 function IconSymbol({ name, size, color }: { name: any, size: number, color: string }) {
-   return <Ionicons name={name === 'house.fill' ? 'home' : name === 'sparkles' ? 'star' : 'help'} size={size} color={color} />;
+   // Mapping some custom names if needed, or straight pass through
+   const iconName = name === 'house.fill' ? 'home' 
+     : name === 'sparkles' ? 'star' // mapped sparkles to star previously, kept for consistency
+     : name === 'magnet' ? 'magnet'
+     : name === 'questionmark.circle.fill' ? 'help-circle'
+     : 'help';
+     
+   return <Ionicons name={iconName} size={size} color={color} />;
 }
 
 
@@ -431,6 +675,65 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 24,
+  },
+  mascotContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  speechBubble: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginTop: 10,
+    maxWidth: '80%',
+    position: 'relative',
+  },
+  speechArrow: {
+    position: 'absolute',
+    top: -8,
+    alignSelf: 'center',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FFFFFF',
+  },
+  speechText: {
+    color: DARK_BG,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  cardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: DARK_SURFACE,
+    borderWidth: 2,
+    borderColor: BORDER_COLOR,
+    gap: 16,
+  },
+  cardButtonSelected: {
+    borderColor: PEACH,
+    backgroundColor: PEACH,
+  },
+  cardButtonTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  cardButtonDesc: {
+    color: TEXT_MUTED,
+    fontSize: 14,
+    marginTop: 2,
+  },
+  cardButtonTextSelected: {
+    color: DARK_BG,
   },
   header: {
     height: 60,
@@ -590,33 +893,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextSelected: {
-    color: DARK_BG,
-  },
-  cardButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: DARK_SURFACE,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: BORDER_COLOR,
-    gap: 16,
-  },
-  cardButtonSelected: {
-    backgroundColor: PEACH,
-    borderColor: PEACH,
-  },
-  cardButtonTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  cardButtonDesc: {
-    fontSize: 14,
-    color: TEXT_MUTED,
-    marginTop: 4,
-  },
-  cardButtonTextSelected: {
     color: DARK_BG,
   },
   dividerContainer: {

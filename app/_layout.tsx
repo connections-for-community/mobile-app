@@ -15,19 +15,23 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
+    const isOnboarded = user?.user_metadata?.onboarding_complete === true;
 
     if (!isAuthenticated && !inAuthGroup && segments.length > 0) {
       // Redirect to the welcome screen if not authenticated and trying to access protected routes
       router.replace('/');
     } else if (isAuthenticated && (inAuthGroup || segments.length < 1)) {
-      // Redirect to tabs if authenticated and trying to access welcome or auth screens
-      router.replace('/(tabs)/home');
+      if (isOnboarded) {
+        // Redirect to tabs ONLY if completely onboarded
+        router.replace('/(tabs)/home');
+      } 
+      // If authenticatd but NOT onboarded, stay in auth group (login/signup) to finish details
     }
-  }, [isAuthenticated, segments]);
+  }, [isAuthenticated, segments, user]);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
