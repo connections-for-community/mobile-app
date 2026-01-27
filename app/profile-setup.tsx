@@ -7,24 +7,24 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileSetupScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const colorScheme = useColorScheme() ?? 'light';
   const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
@@ -151,6 +151,9 @@ export default function ProfileSetupScreen() {
              // We won't block the user from entering the app, but we alert them.
              Alert.alert('Profile Warning', 'Your profile details were saved to your account, but the public profile sync failed. Please contact support if this persists.');
         }
+
+        // Refresh the user in auth context to get updated metadata
+        await refreshUser();
 
         // Navigate to tabs
         router.replace('/(tabs)/home');

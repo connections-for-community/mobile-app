@@ -1,21 +1,22 @@
+import { BeeMascot } from '@/components/bee-mascot';
+import { useAuth } from '@/context/auth-context';
 import { signInWithApple, signInWithGoogle } from '@/utils/auth-social';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-    ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BeeMascot } from '@/components/bee-mascot';
 
 const PEACH = '#FFB347';
 const DARK_BG = '#131f24';
@@ -43,6 +44,7 @@ const AVAILABLE_INTERESTS = [
 export default function SignUpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { refreshUser } = useAuth();
   
   // Wizard State
   const [currentStep, setCurrentStep] = useState(STEP_WELCOME);
@@ -148,6 +150,9 @@ export default function SignUpScreen() {
         const { error } = await supabase.auth.updateUser({ data: metadata });
         if (error) throw error;
       }
+
+      // Refresh the user in auth context to get updated metadata
+      await refreshUser();
 
       // Redirect to Profile Setup instead of Home
       router.replace('/profile-setup');
@@ -601,7 +606,7 @@ export default function SignUpScreen() {
         <View style={styles.header}>
            {currentStep === STEP_WELCOME && (
              <TouchableOpacity 
-               onPress={() => router.back()}
+               onPress={() => router.replace('/')}
                style={styles.backButton}
              >
                <Ionicons name="close" size={28} color="#FFFFFF" />
