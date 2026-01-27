@@ -16,35 +16,58 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+### 3. Running the App
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+#### Option A: Expo Go (Limited - No Google/Apple Auth)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Best for UI development when you don't need Google/Apple sign-in:
 
 ```bash
-npm run reset-project
+npx expo start --go
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Scan the QR code with the **Expo Go** app on your phone.
 
-## Learn more
+#### Option B: Development Build (Full Features)
 
-To learn more about developing your project with Expo, look at the following resources:
+Required for Google/Apple authentication:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+# Start the dev server
+npx expo start --dev-client
 
-## Join the community
+# If using tunnel (for Linux or complex networks)
+npx expo start --dev-client --tunnel
+```
 
-Join our community of developers creating universal apps.
+Open your custom **Connections** dev client app (not Expo Go) and connect.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## Building the Development Client
+
+Native features (Google Sign-In, Apple Sign-In) require a custom development build.
+
+### iOS (Cloud Build via EAS)
+
+> ⚠️ iOS builds require EAS (Expo Application Services). You cannot build iOS locally on Windows or Linux.
+
+1. **Register your iOS device:**
+```bash
+   npx eas device:create
+```
+   Follow the prompts to scan a QR code on your iPhone.
+
+2. **Build the development client:**
+```bash
+   eas build --platform ios --profile development
+```
+   This takes ~5-10 minutes. You only need to rebuild when adding new native modules.
+
+3. **Install on your device:**
+   - Scan the QR code provided after build completion
+   - Or download the `.ipa` from the EAS dashboard
+
+4. **Enable Developer Mode on iPhone (iOS 16+):**
+   - Settings → Privacy & Security → Developer Mode → ON
+   - Restart when prompted
