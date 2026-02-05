@@ -82,8 +82,16 @@ export default function SettingsScreen() {
   const uploadAvatarToSupabase = async (localUri: string, _size: AvatarSize) => {
     if (!user?.id) throw new Error("No active session found.");
 
-    // Upload the image directly (image manipulation removed for now)
-    const arrayBuffer = await fetch(localUri).then((r) => r.arrayBuffer());
+    // Resize output (this is the “resize in app” knob before confirm)
+    const manipulated = await manipulateAsync(
+      localUri,
+      [{ resize: { width: size } }],
+      { compress: 0.85, format: SaveFormat.JPEG },
+    );
+
+    const arrayBuffer = await fetch(manipulated.uri).then((r) =>
+      r.arrayBuffer(),
+    );
     const filePath = `${user.id}/${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabase.storage
@@ -139,7 +147,10 @@ export default function SettingsScreen() {
 
     setUploading(true);
     try {
-      const publicUrl = await uploadAvatarToSupabase(pendingAvatarUri, avatarSize);
+      const publicUrl = await uploadAvatarToSupabase(
+        pendingAvatarUri,
+        avatarSize,
+      );
       await updateAvatarMetadata(publicUrl);
 
       setAvatarUrl(publicUrl);
@@ -148,7 +159,10 @@ export default function SettingsScreen() {
       Alert.alert("Updated", "Profile picture updated.");
     } catch (e: any) {
       console.error("Avatar upload error:", e);
-      Alert.alert("Upload failed", e?.message ?? "Could not update profile picture.");
+      Alert.alert(
+        "Upload failed",
+        e?.message ?? "Could not update profile picture.",
+      );
     } finally {
       setUploading(false);
     }
@@ -177,7 +191,10 @@ export default function SettingsScreen() {
   return (
     <>
       <ScrollView
-        style={[styles.container, { backgroundColor: Colors[colorScheme].background }]}
+        style={[
+          styles.container,
+          { backgroundColor: Colors[colorScheme].background },
+        ]}
         contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 120 }}
       >
         <View style={styles.header}>
@@ -189,7 +206,9 @@ export default function SettingsScreen() {
         <View style={styles.content}>
           {/* My Profile */}
           <View style={[styles.section, { backgroundColor: sectionBg }]}>
-            <Text style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}>
+            <Text
+              style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}
+            >
               My Profile
             </Text>
 
@@ -223,10 +242,14 @@ export default function SettingsScreen() {
               </TouchableOpacity>
 
               <View style={{ flex: 1 }}>
-                <Text style={[styles.label, { color: Colors[colorScheme].text }]}>
+                <Text
+                  style={[styles.label, { color: Colors[colorScheme].text }]}
+                >
                   Profile picture
                 </Text>
-                <Text style={[styles.subLabel, { color: Colors[colorScheme].icon }]}>
+                <Text
+                  style={[styles.subLabel, { color: Colors[colorScheme].icon }]}
+                >
                   Tap to select from your gallery, resize, and confirm.
                 </Text>
 
@@ -234,7 +257,10 @@ export default function SettingsScreen() {
                   <TouchableOpacity
                     onPress={removeAvatar}
                     disabled={uploading}
-                    style={[styles.removeAvatarBtn, uploading && { opacity: 0.7 }]}
+                    style={[
+                      styles.removeAvatarBtn,
+                      uploading && { opacity: 0.7 },
+                    ]}
                   >
                     <Text style={styles.removeAvatarText}>Remove photo</Text>
                   </TouchableOpacity>
@@ -273,7 +299,10 @@ export default function SettingsScreen() {
               <Text
                 style={[
                   styles.value,
-                  { color: Colors[colorScheme].icon, textTransform: "capitalize" },
+                  {
+                    color: Colors[colorScheme].icon,
+                    textTransform: "capitalize",
+                  },
                 ]}
               >
                 {meta.role || "Student"}
@@ -284,10 +313,14 @@ export default function SettingsScreen() {
               <>
                 <View style={styles.separator} />
                 <View style={styles.row}>
-                  <Text style={[styles.label, { color: Colors[colorScheme].text }]}>
+                  <Text
+                    style={[styles.label, { color: Colors[colorScheme].text }]}
+                  >
                     Personality
                   </Text>
-                  <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>
+                  <Text
+                    style={[styles.value, { color: Colors[colorScheme].icon }]}
+                  >
                     {meta.personality_type}
                   </Text>
                 </View>
@@ -306,7 +339,9 @@ export default function SettingsScreen() {
                   >
                     Teaching Skills
                   </Text>
-                  <Text style={[styles.value, { color: Colors[colorScheme].icon }]}>
+                  <Text
+                    style={[styles.value, { color: Colors[colorScheme].icon }]}
+                  >
                     {meta.instructor_skills || "None listed"}
                   </Text>
                 </View>
@@ -316,7 +351,9 @@ export default function SettingsScreen() {
 
           {/* Interests */}
           <View style={[styles.section, { backgroundColor: sectionBg }]}>
-            <Text style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}>
+            <Text
+              style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}
+            >
               Interests
             </Text>
             <View style={styles.chipContainer}>
@@ -334,7 +371,9 @@ export default function SettingsScreen() {
 
           {/* Account */}
           <View style={[styles.section, { backgroundColor: sectionBg }]}>
-            <Text style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}>
+            <Text
+              style={[styles.sectionTitle, { color: Colors[colorScheme].text }]}
+            >
               Account
             </Text>
             <View style={styles.row}>
@@ -347,11 +386,17 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <TouchableOpacity
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+          >
             <Text style={styles.signOutText}>LOG OUT</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccount}
+          >
             <Text style={styles.deleteButtonText}>DELETE ACCOUNT</Text>
           </TouchableOpacity>
         </View>
@@ -368,21 +413,31 @@ export default function SettingsScreen() {
           <View
             style={[
               styles.modalCard,
-              { backgroundColor: colorScheme === "dark" ? "#1c2b33" : "#ffffff" },
+              {
+                backgroundColor: colorScheme === "dark" ? "#1c2b33" : "#ffffff",
+              },
             ]}
           >
-            <Text style={[styles.modalTitle, { color: Colors[colorScheme].text }]}>
+            <Text
+              style={[styles.modalTitle, { color: Colors[colorScheme].text }]}
+            >
               Resize & confirm
             </Text>
             <Text
-              style={[styles.modalSubtitle, { color: Colors[colorScheme].icon }]}
+              style={[
+                styles.modalSubtitle,
+                { color: Colors[colorScheme].icon },
+              ]}
             >
               Choose an output size, then confirm.
             </Text>
 
             <View style={styles.previewWrap}>
               {pendingAvatarUri ? (
-                <Image source={{ uri: pendingAvatarUri }} style={styles.previewImage} />
+                <Image
+                  source={{ uri: pendingAvatarUri }}
+                  style={styles.previewImage}
+                />
               ) : null}
             </View>
 
@@ -413,7 +468,12 @@ export default function SettingsScreen() {
                 disabled={uploading}
                 onPress={cancelAvatar}
               >
-                <Text style={[styles.modalBtnText, { color: Colors[colorScheme].text }]}>
+                <Text
+                  style={[
+                    styles.modalBtnText,
+                    { color: Colors[colorScheme].text },
+                  ]}
+                >
                   Cancel
                 </Text>
               </Pressable>
@@ -459,10 +519,14 @@ function SizePill({
       onPress={onPress}
       style={[styles.sizePill, selected && styles.sizePillSelected]}
     >
-      <Text style={[styles.sizePillText, selected && styles.sizePillTextSelected]}>
+      <Text
+        style={[styles.sizePillText, selected && styles.sizePillTextSelected]}
+      >
         {label}
       </Text>
-      <Text style={[styles.sizePillSub, selected && styles.sizePillTextSelected]}>
+      <Text
+        style={[styles.sizePillSub, selected && styles.sizePillTextSelected]}
+      >
         {px}px
       </Text>
     </Pressable>
@@ -485,7 +549,12 @@ const styles = StyleSheet.create({
 
   avatarRow: { flexDirection: "row", alignItems: "center", gap: 14 as any },
   avatarPressable: { position: "relative" },
-  avatar: { width: 76, height: 76, borderRadius: 38, backgroundColor: "#e9e9e9" },
+  avatar: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: "#e9e9e9",
+  },
   avatarPlaceholder: { alignItems: "center", justifyContent: "center" },
   avatarBadge: {
     position: "absolute",
@@ -504,7 +573,11 @@ const styles = StyleSheet.create({
   removeAvatarBtn: { marginTop: 8, alignSelf: "flex-start" },
   removeAvatarText: { color: "#FF6B6B", fontWeight: "700", fontSize: 12 },
 
-  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   column: { flexDirection: "column", alignItems: "flex-start" },
   separator: { height: 1, backgroundColor: "#37464f", opacity: 0.2 },
 
@@ -550,7 +623,11 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: "800" },
   modalSubtitle: { fontSize: 12, fontWeight: "600" },
 
-  previewWrap: { alignItems: "center", justifyContent: "center", paddingVertical: 8 },
+  previewWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+  },
   previewImage: {
     width: 180,
     height: 180,

@@ -1,4 +1,3 @@
-// TODO: Uncomment when Development Build is ready
 import { signInWithApple, signInWithGoogle } from '@/utils/auth-social';
 import { supabase } from '@/utils/supabase';
 import { Ionicons } from '@expo/vector-icons';

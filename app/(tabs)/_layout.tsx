@@ -7,10 +7,70 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+<<<<<<< HEAD
+=======
+import { Image, View } from "react-native";
+
+function AvatarTabIcon({
+  uri,
+  focused,
+}: {
+  uri?: string | null;
+  focused: boolean;
+}) {
+  const size = 28;
+  const border = 2;
+  const inner = size - border * 2;
+
+  if (!uri) {
+    return (
+      <IconSymbol
+        size={size}
+        name="person.crop.circle.fill"
+        color={focused ? "#FFB347" : "#8a9ba8"}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: border,
+        borderColor: focused ? "#FFB347" : "transparent",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <View
+        style={{
+          width: inner,
+          height: inner,
+          borderRadius: inner / 2,
+          overflow: "hidden",
+        }}
+      >
+        <Image
+          source={{ uri }}
+          style={{ width: inner, height: inner }}
+          resizeMode="cover"
+        />
+      </View>
+    </View>
+  );
+}
+>>>>>>> 32a4da890f8887630b2d0a884aea9c7f4f944e89
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { user } = useAuth();
+  const meta = user?.user_metadata ?? {};
+  const customAvatarUrl =
+    (meta.custom_avatar_url as string | undefined) ?? null;
+  const providerAvatarUrl = (meta.avatar_url as string | undefined) ?? null;
+  const avatarUrl = customAvatarUrl ?? providerAvatarUrl;
 
   const role = user?.user_metadata?.role;
   const isInstructor = role === "instructor";
@@ -31,15 +91,32 @@ export default function TabLayout() {
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="house.fill" color={color} />
+          ),
         }}
       />
 
       <Tabs.Screen
+<<<<<<< HEAD
+=======
+        name="discover"
+        options={{
+          title: "Discover",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="sparkles" color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+>>>>>>> 32a4da890f8887630b2d0a884aea9c7f4f944e89
         name="events"
         options={{
           title: "My Events",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="calendar" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="calendar" color={color} />
+          ),
         }}
       />
 
@@ -49,7 +126,9 @@ export default function TabLayout() {
         options={{
           title: "Create",
           href: isInstructor ? "/(tabs)/create" : null,
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="plus.circle.fill" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="plus.circle.fill" color={color} />
+          ),
         }}
       />
 
@@ -57,15 +136,19 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: "Messages",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="message.fill" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="message.fill" color={color} />
+          ),
         }}
       />
 
       <Tabs.Screen
-        name="settings"
+        name="profile"
         options={{
-          title: "Settings",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
+          title: "Profile",
+          tabBarIcon: ({ focused }) => (
+            <AvatarTabIcon uri={avatarUrl} focused={focused} />
+          ),
         }}
       />
     </Tabs>
