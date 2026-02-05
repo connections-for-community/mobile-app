@@ -1,7 +1,7 @@
 // Fallback for using MaterialIcons on Android and web.
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
+import { SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
@@ -14,6 +14,8 @@ type IconSymbolName = keyof typeof MAPPING;
  * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
  */
 const MAPPING = {
+  // See MaterialIcons here: https://icons.expo.fyi
+  // See SF Symbols in the SF Symbols app on Mac.
   'house.fill': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
@@ -24,6 +26,20 @@ const MAPPING = {
   'message.fill': 'chat',
   'person.2.fill': 'people',
   'plus.circle.fill': 'add-circle',
+  'calendar': 'calendar-today',
+  'location': 'place',
+  'location.fill': 'place',
+  'heart': 'favorite-border',
+  'heart.fill': 'favorite',
+  'bubble.left': 'chat-bubble-outline',
+  'square.and.arrow.up': 'share',
+  'person.crop.circle': 'account-circle',
+  'xmark.circle.fill': 'cancel',
+  
+  // View icons
+  'rectangle.grid.1x2.fill': 'view-agenda',
+  'calendar.badge.clock': 'calendar-view-month',
+  'rectangle.portrait.on.rectangle.portrait.fill': 'view-carousel', 
 } as IconMapping;
 
 /**

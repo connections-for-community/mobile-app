@@ -68,7 +68,6 @@ type AuthMethod = "email" | "google" | "apple" | null;
 export default function SignUpScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   // Wizard State
   const [currentStep, setCurrentStep] = useState(STEP_WELCOME);
 

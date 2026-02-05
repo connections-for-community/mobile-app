@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, ScrollView, TouchableOpacity, Alert, Platform, KeyboardAvoidingView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '@/context/auth-context';
 import { Colors } from '@/constants/theme';
+import { useAuth } from '@/context/auth-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Redirect } from 'expo-router';
+import React, { useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CreateScreen() {
   const insets = useSafeAreaInsets();
@@ -24,7 +24,21 @@ export default function CreateScreen() {
   const [location, setLocation] = useState('');
   const [overview, setOverview] = useState('');
   const [goodToKnow, setGoodToKnow] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
 
   const handleCreateEvent = async () => {
     if (!title || !date || !time || !location) {
@@ -43,6 +57,7 @@ export default function CreateScreen() {
       setLocation('');
       setOverview('');
       setGoodToKnow('');
+      setImage(null);
     }, 1500);
   };
 
@@ -68,6 +83,19 @@ export default function CreateScreen() {
               value={title}
               onChangeText={setTitle}
             />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: Colors[colorScheme].text }]}>Cover Image</Text>
+            <TouchableOpacity onPress={pickImage} style={[styles.imageUpload, { borderColor: Colors[colorScheme].icon }]}>
+              {image ? (
+                <Image source={{ uri: image }} style={styles.uploadedImage} contentFit="cover" />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Text style={{ color: Colors[colorScheme].icon }}>Tap to select an image</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.row}>
@@ -157,4 +185,21 @@ const styles = StyleSheet.create({
   textArea: { height: 100, textAlignVertical: 'top' },
   createButton: { backgroundColor: '#FFB347', padding: 18, borderRadius: 16, alignItems: 'center', marginTop: 16 },
   createButtonText: { color: '#131f24', fontSize: 16, fontWeight: 'bold' },
+  imageUpload: {
+    borderWidth: 1,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    height: 180,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  uploadedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
