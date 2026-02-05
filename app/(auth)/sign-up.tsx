@@ -1,4 +1,5 @@
 import { BeeMascot } from "@/components/bee-mascot";
+import { getPersonalityLabel } from "@/constants/personality";
 import { signInWithApple, signInWithGoogle } from "@/utils/auth-social";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
@@ -214,7 +215,10 @@ export default function SignUpScreen() {
       onboarding_complete: true,
     };
 
-    if (personalityType) metadata.personality_type = personalityType;
+    if (personalityType) {
+      metadata.personality_type = personalityType;
+      metadata.personality_label = getPersonalityLabel(personalityType);
+    }
     if (instructorSkills.trim()) {
       metadata.instructor_skills = instructorSkills.trim();
     }
