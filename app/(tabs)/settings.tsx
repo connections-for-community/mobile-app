@@ -3,7 +3,6 @@ import { useAuth } from "@/context/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import React, { useMemo, useState } from "react";
 import {
@@ -80,17 +79,11 @@ export default function SettingsScreen() {
     if (error) throw error;
   };
 
-  const uploadAvatarToSupabase = async (localUri: string, size: AvatarSize) => {
+  const uploadAvatarToSupabase = async (localUri: string, _size: AvatarSize) => {
     if (!user?.id) throw new Error("No active session found.");
 
-    // Resize output (this is the “resize in app” knob before confirm)
-const manipulated = await manipulateAsync(
-  localUri,
-  [{ resize: { width: size } }],
-  { compress: 0.85, format: SaveFormat.JPEG },
-);
-
-    const arrayBuffer = await fetch(manipulated.uri).then((r) => r.arrayBuffer());
+    // Upload the image directly (image manipulation removed for now)
+    const arrayBuffer = await fetch(localUri).then((r) => r.arrayBuffer());
     const filePath = `${user.id}/${Date.now()}.jpg`;
 
     const { error: uploadError } = await supabase.storage

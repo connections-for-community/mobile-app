@@ -35,11 +35,11 @@ const MAPPING = {
   'square.and.arrow.up': 'share',
   'person.crop.circle': 'account-circle',
   'xmark.circle.fill': 'cancel',
-  
-  // View icons
-  'rectangle.grid.1x2.fill': 'view-agenda',
-  'calendar.badge.clock': 'calendar-view-month',
-  'rectangle.portrait.on.rectangle.portrait.fill': 'view-carousel', 
+  'magnifyingglass': 'search',
+  'sliders.horizontal.3': 'tune',
+  'arrow.left': 'arrow-back',
+  'chevron.left': 'chevron-left',
+  'lock.fill': 'lock',
 } as IconMapping;
 
 /**
