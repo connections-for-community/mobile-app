@@ -7,8 +7,6 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-<<<<<<< HEAD
-=======
 import { Image, View } from "react-native";
 
 function AvatarTabIcon({
@@ -61,7 +59,6 @@ function AvatarTabIcon({
     </View>
   );
 }
->>>>>>> 32a4da890f8887630b2d0a884aea9c7f4f944e89
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
