@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "connections-mobile",
+    "owner": "zaellington",
     "slug": "connections-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,7 +25,10 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.arhim.connectionsmobile"
+      "package": "com.arhim.connectionsmobile",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -66,7 +70,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "065d5cb9-1fe7-43d7-b8ca-341261841dc6"
+        "projectId": "d89e145c-2cc2-4d4a-9f00-0a38ead9a777"
       }
     }
   }

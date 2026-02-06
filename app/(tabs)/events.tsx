@@ -10,11 +10,20 @@ export default function EventsScreen() {
   const colorScheme = useColorScheme() ?? 'light';
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: Colors[colorScheme].background }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: insets.top, backgroundColor: Colors[colorScheme].background },
+      ]}
+    >
       <View style={styles.centeredContent}>
         <IconSymbol name="calendar" size={64} color="#FFB347" />
-        <Text style={[styles.title, { color: Colors[colorScheme].text }]}>My Events</Text>
-        <Text style={styles.subtitle}>Your upcoming and past events will appear here.</Text>
+        <Text style={[styles.title, { color: Colors[colorScheme].text }]}>
+          My Events
+        </Text>
+        <Text style={styles.subtitle}>
+          Your upcoming and past events will appear here.
+        </Text>
       </View>
     </View>
   );

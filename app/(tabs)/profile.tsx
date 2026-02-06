@@ -8,11 +8,14 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
@@ -20,6 +23,7 @@ import {
   Switch,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -58,12 +62,40 @@ const AVAILABLE_TIMEZONES = [
   "America/St_Johns",
 ];
 
+const appendCacheBuster = (url?: string | null) => {
+  if (!url) return null;
+  if (url.includes("t=")) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}t=${Date.now()}`;
+};
+
 export default function SettingsScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const colorScheme = useColorScheme() ?? "light";
   const insets = useSafeAreaInsets();
   const deviceTimezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+
+  const withTimeout = async <T,>(
+    promise: Promise<T>,
+    ms: number,
+    label: string,
+  ) => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(`${label} timed out`)),
+        ms,
+      );
+    });
+
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
 
   const meta = user?.user_metadata || {};
   const role = (meta.role as string | undefined) ?? "student";
@@ -117,25 +149,122 @@ export default function SettingsScreen() {
       "imperial",
   }));
 
+  const [profileRecord, setProfileRecord] = useState<{
+    user_id: string;
+    full_name: string | null;
+    username: string | null;
+    main_skill: string | null;
+    interests: string[] | null;
+    personality_type: string | null;
+    is_public: boolean | null;
+    message_notifications_enabled: boolean | null;
+    timezone: string | null;
+    distance_unit: string | null;
+    event_reminder_minutes: number | null;
+    profile_image_url: string | null;
+  } | null>(null);
+
+
   const sectionBg = useMemo(
     () => (colorScheme === "dark" ? "#1c2b33" : "#f5f5f5"),
     [colorScheme],
   );
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadProfile() {
+      if (!user?.id) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(
+          "user_id, full_name, username, main_skill, interests, personality_type, is_public, message_notifications_enabled, timezone, distance_unit, event_reminder_minutes, profile_image_url",
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!isMounted) return;
+      if (error) {
+        console.error("Profile load error:", error);
+        setProfileRecord(null);
+      } else {
+        const normalized =
+          data && data.profile_image_url
+            ? {
+                ...data,
+                profile_image_url: appendCacheBuster(data.profile_image_url),
+              }
+            : data;
+        setProfileRecord(normalized ?? null);
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`profiles:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profiles",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const nextRecord = payload.new as typeof profileRecord;
+          if (!nextRecord) return;
+          const normalized = {
+            ...nextRecord,
+            profile_image_url: appendCacheBuster(nextRecord.profile_image_url),
+          };
+          setProfileRecord((prev) => ({ ...(prev ?? {}), ...normalized }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     const nextSaved = {
-      full_name: (meta.full_name as string | undefined) ?? "",
-      username: (meta.username as string | undefined) ?? "",
-      instructor_skills: (meta.instructor_skills as string | undefined) ?? "",
-      interests: Array.isArray(meta.interests)
-        ? (meta.interests as string[])
-        : [],
-      personality_type: (meta.personality_type as string | undefined) ?? null,
+      full_name:
+        profileRecord?.full_name ??
+        (meta.full_name as string | undefined) ??
+        "",
+      username:
+        profileRecord?.username ??
+        (meta.username as string | undefined) ??
+        "",
+      instructor_skills:
+        profileRecord?.main_skill ??
+        (meta.instructor_skills as string | undefined) ??
+        "",
+      interests:
+        profileRecord?.interests ??
+        (Array.isArray(meta.interests) ? (meta.interests as string[]) : []),
+      personality_type:
+        profileRecord?.personality_type ??
+        (meta.personality_type as string | undefined) ??
+        null,
     };
     setSavedProfile(nextSaved);
     if (!isEditing) setDraftProfile(nextSaved);
+    if (profileRecord?.profile_image_url !== undefined) {
+      setCustomAvatarUrl(profileRecord?.profile_image_url ?? null);
+    }
   }, [
-    user?.id,
+    profileRecord,
     meta.full_name,
     meta.username,
     meta.instructor_skills,
@@ -145,32 +274,41 @@ export default function SettingsScreen() {
   ]);
 
   useEffect(() => {
+    const profileVisibility =
+      profileRecord?.is_public === null || profileRecord?.is_public === undefined
+        ? (meta.profile_visibility as "public" | "private" | undefined) ??
+          "public"
+        : profileRecord.is_public
+          ? "public"
+          : "private";
+
+    const reminderMinutes =
+      profileRecord?.event_reminder_minutes ??
+      (meta.event_reminders_enabled ? 60 : 0);
+
     setSettingsDraft({
-      profile_visibility:
-        (meta.profile_visibility as "public" | "private" | undefined) ??
-        "public",
-      event_reminders_enabled:
-        (meta.event_reminders_enabled as boolean | undefined) ?? true,
+      profile_visibility: profileVisibility,
+      event_reminders_enabled: reminderMinutes > 0,
       message_notifications_enabled:
-        (meta.message_notifications_enabled as boolean | undefined) ?? true,
-      timezone: (meta.timezone as string | undefined) ?? deviceTimezone,
+        profileRecord?.message_notifications_enabled ??
+        (meta.message_notifications_enabled as boolean | undefined) ??
+        true,
+      timezone: profileRecord?.timezone ?? deviceTimezone,
       measurement_system:
-        (meta.measurement_system as "imperial" | "metric" | undefined) ??
-        "imperial",
+        profileRecord?.distance_unit === "kilometers" ? "metric" : "imperial",
     });
   }, [
-    user?.id,
+    profileRecord,
     meta.profile_visibility,
     meta.event_reminders_enabled,
     meta.message_notifications_enabled,
-    meta.timezone,
-    meta.measurement_system,
     deviceTimezone,
   ]);
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) Alert.alert("Error signing out", error.message);
+    router.replace("/welcome");
   };
 
   const handleDeleteAccount = () => {
@@ -184,10 +322,11 @@ export default function SettingsScreen() {
           style: "destructive",
           onPress: async () => {
             Alert.alert(
-              "Account Deleted",
-              "Your account has been scheduled for deletion.",
-            );
-            await supabase.auth.signOut();
+            "Account Deleted",
+            "Your account has been scheduled for deletion.",
+          );
+            await supabase.auth.signOut({ scope: "local" });
+            router.replace("/welcome");
           },
         },
       ],
@@ -197,11 +336,30 @@ export default function SettingsScreen() {
   const saveSettings = async () => {
     setSavingSettings(true);
     try {
-      const currentMeta = user?.user_metadata ?? {};
-      const { error } = await supabase.auth.updateUser({
-        data: { ...currentMeta, ...settingsDraft },
-      });
+      if (!user?.id) throw new Error("No active session found.");
+
+      const payload = {
+        user_id: user.id,
+        is_public: settingsDraft.profile_visibility === "public",
+        message_notifications_enabled: settingsDraft.message_notifications_enabled,
+        timezone: settingsDraft.timezone,
+        distance_unit:
+          settingsDraft.measurement_system === "metric" ? "kilometers" : "miles",
+        event_reminder_minutes: settingsDraft.event_reminders_enabled ? 60 : 0,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data, error } = await withTimeout(
+        supabase
+          .from("profiles")
+          .upsert(payload, { onConflict: "user_id" })
+          .select()
+          .single(),
+        12000,
+        "Update settings",
+      );
       if (error) throw error;
+      setProfileRecord((prev) => ({ ...(prev ?? payload), ...data }));
       Alert.alert("Updated", "Settings saved.");
     } catch (e: any) {
       console.error("Settings update error:", e);
@@ -257,9 +415,9 @@ export default function SettingsScreen() {
     if (!user?.id) throw new Error("No active session found.");
     const { data, error } = await supabase
       .from("profiles")
-      .select("id")
+      .select("user_id")
       .eq("username", username)
-      .neq("id", user.id)
+      .neq("user_id", user.id)
       .limit(1);
 
     if (error) throw error;
@@ -288,28 +446,37 @@ export default function SettingsScreen() {
         }
       }
 
-      const currentMeta = user?.user_metadata ?? {};
+      if (!user?.id) throw new Error("No active session found.");
+
       const nextProfile = {
-        ...currentMeta,
+        user_id: user.id,
         full_name: draftProfile.full_name.trim(),
         username: nextUsername,
-        instructor_skills: draftProfile.instructor_skills.trim(),
+        main_skill: draftProfile.instructor_skills.trim(),
         interests: draftProfile.interests,
         personality_type: draftProfile.personality_type || null,
+        updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase.auth.updateUser({
-        data: nextProfile,
-      });
+      const { data, error } = await withTimeout(
+        supabase
+          .from("profiles")
+          .upsert(nextProfile, { onConflict: "user_id" })
+          .select()
+          .single(),
+        12000,
+        "Update profile",
+      );
       if (error) throw error;
 
       setSavedProfile({
         full_name: nextProfile.full_name,
         username: nextProfile.username,
-        instructor_skills: nextProfile.instructor_skills,
+        instructor_skills: nextProfile.main_skill,
         interests: nextProfile.interests,
         personality_type: nextProfile.personality_type,
       });
+      setProfileRecord((prev) => ({ ...(prev ?? nextProfile), ...data }));
 
       setIsEditing(false);
       Alert.alert("Updated", "Profile updated.");
@@ -332,42 +499,66 @@ export default function SettingsScreen() {
     setIsEditing(true);
   };
 
-  const updateAvatarMetadata = async (newAvatarUrl: string | null) => {
-    const currentMeta = user?.user_metadata ?? {};
-    const { error } = await supabase.auth.updateUser({
-      data: { ...currentMeta, custom_avatar_url: newAvatarUrl },
-    });
+  const updateProfileAvatar = async (newAvatarUrl: string | null) => {
+    if (!user?.id) throw new Error("No active session found.");
+    const payload = {
+      user_id: user.id,
+      profile_image_url: newAvatarUrl,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await withTimeout(
+      supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "user_id" })
+        .select()
+        .single(),
+      12000,
+      "Update profile avatar",
+    );
     if (error) throw error;
+    setProfileRecord((prev) => ({ ...(prev ?? payload), ...data }));
   };
 
   const uploadAvatarToSupabase = async (localUri: string) => {
     if (!user?.id) throw new Error("No active session found.");
 
-    // Fetch the local file into an ArrayBuffer (works without native manipulator)
-    const arrayBuffer = await fetch(localUri).then((r) => r.arrayBuffer());
-
-    // Try to detect mime; iOS often gives .jpg/.jpeg/.png
     const lower = localUri.toLowerCase();
     const isPng = lower.endsWith(".png");
+    const format = isPng
+      ? ImageManipulator.SaveFormat.PNG
+      : ImageManipulator.SaveFormat.JPEG;
+
+    const manipulated = await ImageManipulator.manipulateAsync(
+      localUri,
+      [{ resize: { width: 512 } }],
+      { compress: 0.8, format },
+    );
+
+    const arrayBuffer = await fetch(manipulated.uri).then((r) =>
+      r.arrayBuffer(),
+    );
+
     const contentType = isPng ? "image/png" : "image/jpeg";
     const ext = isPng ? "png" : "jpg";
 
-    // Store as: <userId>/avatar_<timestamp>.<ext>
-    const filePath = `${user.id}/avatar_${Date.now()}.${ext}`;
+    // Store as a fixed path to overwrite prior avatars
+    const filePath = `${user.id}/avatar.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, arrayBuffer, {
+    const { error: uploadError } = await withTimeout(
+      supabase.storage.from("avatars").upload(filePath, arrayBuffer, {
         contentType,
         upsert: true,
-      });
+      }),
+      30000,
+      "Upload avatar",
+    );
 
     if (uploadError) throw uploadError;
 
     const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
     if (!data?.publicUrl) throw new Error("Could not generate avatar URL.");
 
-    return data.publicUrl;
+    return `${data.publicUrl}?t=${Date.now()}`;
   };
 
   const openGalleryPicker = async () => {
@@ -409,7 +600,7 @@ export default function SettingsScreen() {
     setUploading(true);
     try {
       const publicUrl = await uploadAvatarToSupabase(pendingAvatarUri);
-      await updateAvatarMetadata(publicUrl);
+      await updateProfileAvatar(publicUrl);
 
       setCustomAvatarUrl(publicUrl);
       setAvatarModalOpen(false);
@@ -436,7 +627,7 @@ export default function SettingsScreen() {
   const removeAvatar = async () => {
     setUploading(true);
     try {
-      await updateAvatarMetadata(null);
+      await updateProfileAvatar(null);
       setCustomAvatarUrl(null);
       Alert.alert("Updated", "Profile picture removed.");
     } catch (e: any) {
@@ -448,14 +639,16 @@ export default function SettingsScreen() {
   };
 
   return (
-    <>
-      <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: Colors[colorScheme].background },
-        ]}
-        contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 120 }}
-      >
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={{ flex: 1 }}>
+        <ScrollView
+          style={[
+            styles.container,
+            { backgroundColor: Colors[colorScheme].background },
+          ]}
+          contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 120 }}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <Text style={[styles.title, { color: Colors[colorScheme].text }]}>
             Your Profile
@@ -733,6 +926,7 @@ export default function SettingsScreen() {
                             styles.textInput,
                             { color: Colors[colorScheme].text },
                           ]}
+                          textAlign="left"
                           multiline
                         />
                       ) : (
@@ -1178,7 +1372,7 @@ export default function SettingsScreen() {
             </>
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
 
       {/* Confirm Modal */}
       <Modal
@@ -1421,7 +1615,8 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 

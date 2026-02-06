@@ -258,7 +258,7 @@ export default function SignUpScreen() {
       }
 
       Alert.alert("Success", "Profile created! Welcome to Connections.", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/home") },
+        { text: "OK", onPress: () => router.replace("/(tabs)?tab=home") },
       ]);
     } catch (e: any) {
       console.error("Email sign up error:", e);
@@ -319,7 +319,7 @@ export default function SignUpScreen() {
       if (error) throw error;
 
       Alert.alert("Success", "Profile created! Welcome to Connections.", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/home") },
+        { text: "OK", onPress: () => router.replace("/(tabs)?tab=home") },
       ]);
     } catch (e: any) {
       console.error("OAuth finish error:", e);
